@@ -843,8 +843,29 @@ Initialize Terraform:
 
 ```bash
 cd terraform
-terraform init
+terraform init -backend-config=backend-staging.hcl
 ```
+
+Staging and production use separate state objects in the same encrypted S3 state bucket:
+
+```text
+staging/terraform.tfstate
+production/terraform.tfstate
+```
+
+Initialize production from the same Terraform directory with:
+
+```bash
+terraform init -reconfigure -backend-config=backend-production.hcl
+```
+
+Switch back to staging with:
+
+```bash
+terraform init -reconfigure -backend-config=backend-staging.hcl
+```
+
+Run `terraform init -reconfigure` only after confirming the selected state key. Do not use the production backend for staging or vice versa.
 
 Validate configuration:
 
