@@ -27,3 +27,14 @@ variable "ecs_desired_count" {
   type        = number
   default     = 1
 }
+
+variable "github_repository" {
+  description = "GitHub repository in owner/repository format"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "Docker image tag to deploy"
+  type        = string
+  default     = "latest"
+}
