@@ -1,5 +1,5 @@
-# Build stage
-FROM golang:1.27-alpine AS builder
+# Build stage — runs natively on GitHub's AMD64 runner
+FROM --platform=linux/amd64 golang:1.27-alpine AS builder
 
 WORKDIR /src
 
@@ -13,8 +13,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
     -o /server ./cmd/server
 
 
-# Runtime stage
-FROM alpine:3.22
+# Runtime stage — ARM64 for ECS
+FROM --platform=linux/arm64 alpine:3.22
 
 RUN addgroup -S app && adduser -S app -G app
 
