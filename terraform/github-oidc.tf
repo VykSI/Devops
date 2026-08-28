@@ -52,9 +52,11 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:${var.github_repository}:ref:refs/heads/main"
+        "repo:${var.github_repository}:environment:${var.environment}",
+        "repo:VykSI@*/Devops@*:environment:${var.environment}"
       ]
     }
+
   }
 }
 
@@ -111,15 +113,26 @@ data "aws_iam_policy_document" "github_actions_ecs" {
     effect = "Allow"
 
     actions = [
-      "ecs:DescribeServices",
       "ecs:DescribeTaskDefinition",
-      "ecs:RegisterTaskDefinition",
+      "ecs:RegisterTaskDefinition"
+    ]
+
+    resources = [
+      "*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "ecs:DescribeServices",
       "ecs:UpdateService"
     ]
 
     resources = [
       aws_ecs_cluster.app.arn,
-      aws_ecs_service.app.id
+      aws_ecs_service.app.arn
     ]
   }
 
@@ -131,7 +144,8 @@ data "aws_iam_policy_document" "github_actions_ecs" {
     ]
 
     resources = [
-      aws_iam_role.ecs_execution.arn
+      aws_iam_role.ecs_execution.arn,
+      aws_iam_role.ecs_task.arn
     ]
   }
 }
