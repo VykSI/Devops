@@ -13,6 +13,12 @@ resource "aws_lb" "app" {
 
   subnets = aws_subnet.public[*].id
 
+  access_logs {
+    bucket  = aws_s3_bucket.alb_access_logs.id
+    prefix  = "${var.environment}/alb"
+    enabled = true
+  }
+
   tags = {
     Name = "${var.environment}-alb"
   }

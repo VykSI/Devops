@@ -92,6 +92,7 @@ data "aws_iam_policy_document" "github_actions_ecr" {
       "ecr:InitiateLayerUpload",
       "ecr:PutImage",
       "ecr:UploadLayerPart"
+      , "ecr:DescribeImageScanFindings"
     ]
 
     resources = [
