@@ -52,7 +52,8 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:${var.github_repository}:*"
+        "repo:${var.github_repository}:environment:${var.environment}",
+        "repo:VykSI@*/Devops@*:environment:${var.environment}"
       ]
     }
 
