@@ -63,3 +63,38 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
 
   policy = data.aws_iam_policy_document.ecs_execution_secrets.json
 }
+
+# --------------------------------------------------
+# ECS Task Role
+# --------------------------------------------------
+
+resource "aws_iam_role" "ecs_task" {
+  name = "${var.environment}-ecs-task-role"
+
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
+
+  tags = {
+    Name = "${var.environment}-ecs-task-role"
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_task_metrics" {
+  name = "${var.environment}-ecs-task-metrics"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+}
