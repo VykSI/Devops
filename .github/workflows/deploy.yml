@@ -72,15 +72,6 @@ jobs:
           test -n "$ECS_SERVICE" || (echo "ECS_SERVICE is not configured" && exit 1)
           test -n "$ECS_TASK_FAMILY" || (echo "ECS_TASK_FAMILY is not configured" && exit 1)
 
-      - name: Debug OIDC claims
-        uses: github/actions-oidc-debugger@main
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
