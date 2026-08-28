@@ -47,3 +47,18 @@ func New(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 
 	return pool, nil
 }
+
+func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
+	_, err := pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS items (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("create items table: %w", err)
+	}
+
+	return nil
+}

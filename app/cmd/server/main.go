@@ -40,6 +40,11 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := database.Migrate(ctx, db); err != nil {
+		logger.Error("database migration failed", "error", err)
+		os.Exit(1)
+	}
+
 	itemHandler := handler.NewItemHandler(db)
 
 	mux := http.NewServeMux()
