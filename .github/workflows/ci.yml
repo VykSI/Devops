@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+
   push:
     branches:
       - main
@@ -42,6 +43,7 @@ jobs:
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
+
     needs:
       - test
 
@@ -49,11 +51,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build ARM64 image
         run: |
           docker build \
+            --platform linux/arm64 \
             --tag aws-platform-app:test \
             .
 
       - name: Inspect image
-        run: docker image inspect aws-platform-app:test
+        run: |
+          docker image inspect aws-platform-app:test \
+            --format '{{.Architecture}}/{{.Os}}'

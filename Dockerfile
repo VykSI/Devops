@@ -27,3 +27,6 @@ USER app
 EXPOSE 8080
 
 ENTRYPOINT ["/app/server"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q -O - http://localhost:8080/health || exit 1
