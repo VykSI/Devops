@@ -1,0 +1,123 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  ECS_TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------
+      # Checkout
+      # -----------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------
+      # Go setup
+      # -----------------------------------------------
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache-dependency-path: app/go.sum
+
+      # -----------------------------------------------
+      # Tests
+      # -----------------------------------------------
+
+      - name: Download dependencies
+        working-directory: app
+        run: go mod download
+
+      - name: Run tests
+        working-directory: app
+        run: go test ./...
+
+      - name: Run vet
+        working-directory: app
+        run: go vet ./...
+
+      # -----------------------------------------------
+      # AWS authentication
+      # -----------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # -----------------------------------------------
+      # ECR login
+      # -----------------------------------------------
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # -----------------------------------------------
+      # Docker build and push
+      # -----------------------------------------------
+
+      - name: Build Docker image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --platform linux/arm64 \
+            --tag $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            .
+
+      - name: Push Docker image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push \
+            $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # -----------------------------------------------
+      # Deploy to ECS
+      # -----------------------------------------------
+
+      - name: Download current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            > task-definition.json
+
+      - name: Render ECS task definition
+        id: task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: app
+          image: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: Deploy ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-definition.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
