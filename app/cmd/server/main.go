@@ -11,15 +11,15 @@ import (
 
 	"github.com/VykSI/Devops/app/internal/database"
 	"github.com/VykSI/Devops/app/internal/handler"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/VykSI/Devops/app/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
 	logger := slog.New(
 		slog.NewJSONHandler(os.Stdout, nil),
 	)
+	slog.SetDefault(logger)
 
 	port := getEnv("PORT", "8080")
 
@@ -46,24 +46,13 @@ func main() {
 	}
 
 	itemHandler := handler.NewItemHandler(db)
-
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
-
+	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /api/items", itemHandler.List)
 	mux.HandleFunc("POST /api/items", itemHandler.Create)
 
 	metrics.Init()
-
-	mux.Handle(
-		"GET /metrics",
-		promhttp.Handler(),
-	)
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	server := &http.Server{
 		Addr:              ":" + port,
@@ -82,26 +71,22 @@ func main() {
 	}()
 
 	stop := make(chan os.Signal, 1)
-
-	signal.Notify(
-		stop,
-		os.Interrupt,
-		syscall.SIGTERM,
-	)
-
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
 	logger.Info("shutting down server")
-
-	shutdownCtx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server shutdown failed", "error", err)
 	}
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func getEnv(key, fallback string) string {

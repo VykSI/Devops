@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -44,6 +45,13 @@ func Middleware(next http.Handler) http.Handler {
 			r.URL.Path,
 			status,
 			time.Since(start),
+		)
+
+		slog.Info("http request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", status,
+			"duration_ms", time.Since(start).Milliseconds(),
 		)
 	})
 }

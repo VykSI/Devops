@@ -107,7 +107,8 @@ The application is not directly exposed to the public internet. Internet traffic
 .
 ├── .github/
 │   └── workflows/
-│       └── deploy.yaml
+│       ├── ci.yaml
+│       └── deploy.yml
 │
 ├── app/
 │   ├── cmd/
@@ -712,8 +713,6 @@ RDS was selected instead of running PostgreSQL inside ECS because the database i
 
 The overall design aims to use the **simplest architecture that satisfies the requirements while remaining secure, reproducible, and extensible.**
 
----
-
 # CI/CD Pipeline
 
 The deployment workflow is triggered when changes are pushed to:
@@ -742,7 +741,7 @@ go test ./...
 go vet ./...
 ```
 
-A deployment cannot proceed if the test job fails.
+A deployment cannot proceed if the test or vet job fails. Pull requests targeting `main` or `develop` also run the separate [ci.yaml](.github/workflows/ci.yaml) workflow, which adds `govulncheck ./...` for Go dependency vulnerability scanning. The PR workflow performs checks only and never deploys.
 
 ---
 
@@ -766,6 +765,9 @@ Docker Build
 Push Image → ECR
      │
      ▼
+ECR Image Scan
+   │
+   ▼
 Retrieve Current ECS Task Definition
      │
      ▼
@@ -790,6 +792,10 @@ Git commit SHA
 ```
 
 This allows every deployment to be traced back to a specific source revision.
+
+ECR scan-on-push is enabled for each environment repository. The deployment waits for the scan to complete and blocks on HIGH or CRITICAL findings. ECR scans the container image and its OS/packages; `govulncheck` scans Go dependencies.
+
+Production deployment uses the GitHub `production` Environment. Configure required reviewers under **Settings > Environments > production > Required reviewers**. The environment protection rule pauses the deployment before AWS credentials are used.
 
 ---
 
@@ -837,8 +843,29 @@ Initialize Terraform:
 
 ```bash
 cd terraform
-terraform init
+terraform init -backend-config=backend-staging.hcl
 ```
+
+Staging and production use separate state objects in the same encrypted S3 state bucket:
+
+```text
+staging/terraform.tfstate
+production/terraform.tfstate
+```
+
+Initialize production from the same Terraform directory with:
+
+```bash
+terraform init -reconfigure -backend-config=backend-production.hcl
+```
+
+Switch back to staging with:
+
+```bash
+terraform init -reconfigure -backend-config=backend-staging.hcl
+```
+
+Run `terraform init -reconfigure` only after confirming the selected state key. Do not use the production backend for staging or vice versa.
 
 Validate configuration:
 
@@ -921,6 +948,10 @@ Log group:
 
 This provides centralized application logging without requiring direct access to the ECS host.
 
+The Go application writes structured JSON startup, shutdown, database, and HTTP request logs to stdout. HTTP entries include method, path, status, and duration, while request bodies and credentials are excluded. Fargate host OS logs are not collected because those hosts are managed by AWS.
+
+The ALB writes access logs to an environment- and account-specific S3 bucket. The bucket blocks public access, enforces bucket ownership, uses AES-256 encryption, and has versioning enabled. Terraform also uses `force_destroy` so object versions and delete markers are removed before the bucket during `terraform destroy`.
+
 ---
 
 ## ECS Container Insights
@@ -939,12 +970,15 @@ This provides infrastructure-level visibility into:
 
 ## CloudWatch Alarms
 
-The infrastructure includes CloudWatch alarms for important application infrastructure signals such as:
+Two dashboards are provisioned per environment. The application dashboard includes ALB requests, 4xx/5xx responses, latency, ECS CPU and memory, and running tasks. The infrastructure dashboard includes RDS CPU, database connections, free storage, and ECS service health.
 
-* ECS CPU utilization
-* Application Load Balancer HTTP 5xx responses
+The infrastructure includes CloudWatch alarms for important application infrastructure signals:
 
-These alarms provide an early indication of service degradation.
+* ECS CPU utilization and low running task count
+* Application Load Balancer HTTP 5xx responses and high p95 latency
+* RDS CPU utilization and low free storage
+
+These alarms publish to an environment-specific SNS topic. Set the Terraform `alarm_email` variable to create an email subscription, then confirm the subscription from the AWS email before notifications are delivered. Thresholds are configurable through Terraform variables.
 
 ---
 
@@ -973,6 +1007,8 @@ The database is not publicly exposed.
 
 Database credentials are stored in AWS Secrets Manager rather than source control.
 
+ECS receives the password from Secrets Manager. The password remains in local Terraform state because Terraform currently manages both the RDS password and secret version; state and backups must therefore be treated as sensitive. Moving to an AWS-managed RDS password would require a broader credential-contract change.
+
 ### IAM
 
 AWS access is provided through dedicated IAM roles rather than sharing broad credentials.
@@ -984,6 +1020,8 @@ GitHub Actions uses short-lived AWS credentials through OIDC instead of long-liv
 ### Container
 
 The application runs as a non-root user inside the runtime container.
+
+Terraform state remains local intentionally. A safe remote-state migration requires a private, encrypted, versioned S3 state bucket with restricted access, a locking mechanism, a state backup, and a reviewed `terraform init -migrate-state`. No automatic migration is performed.
 
 ---
 
@@ -1035,6 +1073,8 @@ ECS Production
 
 Production uses a separate GitHub environment and Terraform variable configuration.
 
+There are no live database integration tests. The Go test suite uses HTTP tests and `pgxmock`, so it runs without PostgreSQL, AWS, or containers. A future integration layer could use a disposable PostgreSQL service if database integration coverage becomes necessary.
+
 ---
 
 # Useful Commands
@@ -1059,6 +1099,8 @@ cd app
 go mod download
 go test ./...
 go vet ./...
+go install golang.org/x/vuln/cmd/govulncheck@latest
+govulncheck ./...
 go run ./cmd/server
 ```
 
@@ -1137,11 +1179,11 @@ Potential improvements for a production-scale deployment include:
 * Route 53 DNS configuration
 * Auto Scaling for ECS tasks
 * WAF integration with the ALB
-* Centralized alerting through SNS
+* Expanded SNS routing and on-call integration
 * Prometheus/Grafana integration for application metrics
 * Terraform remote state using S3 with state locking
 * Automated Terraform plan/apply workflows
-* Container vulnerability scanning in CI/CD
+* Additional container scanning beyond the ECR scan-on-push gate
 * Blue/green or canary deployments
 * Automated database backup and disaster recovery strategy
 * Separate AWS accounts for staging and production
