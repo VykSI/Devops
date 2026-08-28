@@ -113,7 +113,8 @@ data "aws_iam_policy_document" "github_actions_ecs" {
     effect = "Allow"
 
     actions = [
-      "ecs:DescribeTaskDefinition"
+      "ecs:DescribeTaskDefinition",
+      "ecs:RegisterTaskDefinition"
     ]
 
     resources = [
@@ -126,7 +127,6 @@ data "aws_iam_policy_document" "github_actions_ecs" {
 
     actions = [
       "ecs:DescribeServices",
-      "ecs:RegisterTaskDefinition",
       "ecs:UpdateService"
     ]
 
