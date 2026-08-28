@@ -113,15 +113,26 @@ data "aws_iam_policy_document" "github_actions_ecs" {
     effect = "Allow"
 
     actions = [
+      "ecs:DescribeTaskDefinition"
+    ]
+
+    resources = [
+      "*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+
+    actions = [
       "ecs:DescribeServices",
-      "ecs:DescribeTaskDefinition",
       "ecs:RegisterTaskDefinition",
       "ecs:UpdateService"
     ]
 
     resources = [
       aws_ecs_cluster.app.arn,
-      aws_ecs_service.app.id
+      aws_ecs_service.app.arn
     ]
   }
 
