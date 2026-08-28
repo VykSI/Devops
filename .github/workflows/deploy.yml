@@ -10,6 +10,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Test
@@ -27,6 +31,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.27"
+          cache: true
           cache-dependency-path: app/go.sum
 
       - name: Download dependencies
@@ -58,6 +63,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        run: |
+          test -n "$AWS_REGION" || (echo "AWS_REGION is not configured" && exit 1)
+          test -n "$ECR_REPOSITORY" || (echo "ECR_REPOSITORY is not configured" && exit 1)
+          test -n "$ECS_CLUSTER" || (echo "ECS_CLUSTER is not configured" && exit 1)
+          test -n "$ECS_SERVICE" || (echo "ECS_SERVICE is not configured" && exit 1)
+          test -n "$ECS_TASK_FAMILY" || (echo "ECS_TASK_FAMILY is not configured" && exit 1)
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
