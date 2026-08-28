@@ -37,3 +37,13 @@ output "ecr_repository_url" {
   description = "ECR repository URL"
   value       = aws_ecr_repository.app.repository_url
 }
+
+output "rds_endpoint" {
+  description = "RDS PostgreSQL endpoint"
+  value       = aws_db_instance.app.address
+}
+
+output "rds_port" {
+  description = "RDS PostgreSQL port"
+  value       = aws_db_instance.app.port
+}
