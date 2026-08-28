@@ -32,3 +32,8 @@ output "rds_security_group_id" {
   description = "Security group ID for RDS"
   value       = aws_security_group.rds.id
 }
+
+output "ecr_repository_url" {
+  description = "ECR repository URL"
+  value       = aws_ecr_repository.app.repository_url
+}
