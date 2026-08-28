@@ -587,6 +587,133 @@ The goal was not to select the largest or most feature-rich technology for every
 
 ---
 
+## Engineering Practices & Differentiators
+
+The implementation focuses not only on getting the application deployed, but also on security, reproducibility, maintainability, and operational visibility.
+
+### Infrastructure as Code
+
+All AWS infrastructure is provisioned through Terraform, including networking, security groups, ECS, ECR, RDS, IAM, ALB, and CloudWatch resources.
+
+Environment-specific configuration is separated from the reusable infrastructure definitions, allowing the same architecture to support staging and production.
+
+### Secure CI/CD Authentication
+
+GitHub Actions authenticates with AWS using OpenID Connect (OIDC) rather than storing long-lived AWS access keys.
+
+The GitHub OIDC trust policy restricts which repository and environment can assume the deployment role.
+
+### Least-Privilege IAM
+
+The GitHub Actions deployment role is granted only the permissions required for:
+
+* Pushing images to the application ECR repository
+* Reading and registering ECS task definitions
+* Updating the ECS service
+* Passing the required ECS IAM role
+
+Runtime ECS roles are kept separate from the CI/CD deployment role.
+
+### Private Application and Database Layers
+
+The architecture separates the public and private layers:
+
+```text
+Internet
+   │
+   ▼
+Application Load Balancer
+   │
+   ▼
+ECS Fargate
+   │
+   ▼
+RDS PostgreSQL
+```
+
+The ALB resides in public subnets, while ECS application tasks and RDS are deployed into private subnets.
+
+Security groups restrict communication between the individual layers.
+
+### Secure Container Design
+
+The Docker image uses a multi-stage build so the runtime image contains only the application binary and required runtime components.
+
+The application runs as a dedicated non-root user rather than as root.
+
+A container health check is also configured so ECS can determine whether the application is healthy.
+
+### CI/CD Quality Gates
+
+Deployment is dependent on successful application validation.
+
+The pipeline performs:
+
+```text
+Go Tests
+   ↓
+go vet
+   ↓
+Docker Build
+   ↓
+ECR Push
+   ↓
+ECS Task Definition
+   ↓
+ECS Deployment
+```
+
+This prevents a failed test or static analysis check from proceeding to deployment.
+
+### Immutable Container Versions
+
+Container images are tagged using the Git commit SHA rather than relying exclusively on mutable tags such as `latest`.
+
+This provides traceability between:
+
+```text
+Git Commit
+     ↓
+Docker Image
+     ↓
+ECR
+     ↓
+ECS Task Definition
+```
+
+A deployed ECS task can therefore be traced back to the exact source revision that produced it.
+
+### Application-Level Observability
+
+The Go application exposes Prometheus-compatible metrics including request counts and request duration.
+
+This provides visibility into application behavior in addition to infrastructure-level metrics.
+
+### Environment Isolation
+
+The deployment workflow maps branches to environments:
+
+```text
+develop → staging
+main    → production
+```
+
+GitHub Environments are used to separate environment-specific deployment configuration and credentials.
+
+### Architectural Simplicity
+
+The solution intentionally uses managed services rather than introducing unnecessary operational complexity.
+
+ECS Fargate was selected instead of EKS because Kubernetes cluster management is not required for this workload.
+
+GitHub Actions was selected instead of Jenkins because the source code already resides in GitHub and the project does not require a separately managed CI/CD platform.
+
+RDS was selected instead of running PostgreSQL inside ECS because the database is stateful and benefits from a managed database service.
+
+The overall design aims to use the **simplest architecture that satisfies the requirements while remaining secure, reproducible, and extensible.**
+
+---
+
 # CI/CD Pipeline
 
 The deployment workflow is triggered when changes are pushed to:
