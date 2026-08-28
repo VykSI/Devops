@@ -47,3 +47,18 @@ output "rds_port" {
   description = "RDS PostgreSQL port"
   value       = aws_db_instance.app.port
 }
+
+output "alb_dns_name" {
+  description = "DNS name of the application load balancer"
+  value       = aws_lb.app.dns_name
+}
+
+output "ecs_cluster_name" {
+  description = "ECS cluster name"
+  value       = aws_ecs_cluster.app.name
+}
+
+output "ecs_service_name" {
+  description = "ECS service name"
+  value       = aws_ecs_service.app.name
+}
