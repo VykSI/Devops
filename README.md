@@ -1219,3 +1219,5 @@ OIDC
 ```
 
 The result is a reproducible, secure, and automated deployment pipeline with separate staging and production environments and infrastructure managed entirely through code.
+
+Thanks for watching the video.
