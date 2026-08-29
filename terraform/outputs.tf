@@ -67,3 +67,13 @@ output "github_actions_role_arn" {
   description = "IAM role assumed by GitHub Actions"
   value       = aws_iam_role.github_actions.arn
 }
+
+output "alb_access_logs_bucket" {
+  description = "S3 bucket receiving ALB access logs"
+  value       = aws_s3_bucket.alb_access_logs.id
+}
+
+output "monitoring_topic_arn" {
+  description = "SNS topic receiving CloudWatch alarm notifications"
+  value       = aws_sns_topic.monitoring.arn
+}

@@ -128,7 +128,7 @@ resource "aws_ecs_service" "app" {
 
   task_definition = aws_ecs_task_definition.app.arn
 
-  desired_count = 1
+  desired_count = var.ecs_desired_count
 
   launch_type = "FARGATE"
 

@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
 
 type Item struct {
@@ -20,10 +21,15 @@ type CreateItemRequest struct {
 }
 
 type ItemHandler struct {
-	DB *pgxpool.Pool
+	DB itemStore
 }
 
-func NewItemHandler(db *pgxpool.Pool) *ItemHandler {
+type itemStore interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func NewItemHandler(db itemStore) *ItemHandler {
 	return &ItemHandler{
 		DB: db,
 	}
