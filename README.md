@@ -795,8 +795,6 @@ This allows every deployment to be traced back to a specific source revision.
 
 ECR scan-on-push is enabled for each environment repository. The deployment waits for the scan to complete and blocks on HIGH or CRITICAL findings. ECR scans the container image and its OS/packages; `govulncheck` scans Go dependencies.
 
-Production deployment uses the GitHub `production` Environment. Configure required reviewers under **Settings > Environments > production > Required reviewers**. The environment protection rule pauses the deployment before AWS credentials are used.
-
 ---
 
 # Environment Management
@@ -823,6 +821,8 @@ environment       = "staging"
 ecs_desired_count = 1
 image_tag         = "latest"
 ```
+
+Look at variables.tf in terraform folder and add whatever is required as enviroment variables in .tfvars files.
 
 Production uses its own environment configuration.
 
